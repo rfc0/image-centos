@@ -12,6 +12,7 @@ pipeline:
       - mkdir build
       - touch build/image-ubuntu-test-env
       - ln -s ../7 build/7
+      - ln -s ../8 build/8
       - ln -s ../testing build/testing
       - ln -s ../tools build/tools
     secrets:
@@ -25,7 +26,8 @@ pipeline:
     group: ci1
     image: image-ubuntu-test-env
     commands:
-      - ./tools/packet-packer/scripts/template-validate 7/templates 
+      - ./tools/packet-packer/scripts/template-validate 7/templates
+      - ./tools/packet-packer/scripts/template-validate 8/templates
 
   packer_centos7_t1small:
     group: ci1
@@ -145,5 +147,16 @@ pipeline:
       - cd build/packer_centos7_x2xlarge
       - ln -s ../../scripts scripts; ln -s ../../tools tools; ln -s ../../tools/packet-packer packet-packer
       - packer build -var 'plan=x2.xlarge.x86' -var 'fac=sjc1' -var 'os=centos_7' -var 'mode=install' ../7/templates/centos-7.json
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  packer_centos8_t1small:
+    group: ci1
+    image: image-ubuntu-test-env
+    commands:
+      - mkdir -p build/packer_centos8_t1small
+      - cd build/packer_centos8_t1small
+      - ln -s ../../scripts scripts; ln -s ../../tools tools; ln -s ../../tools/packet-packer packet-packer
+      - packer build -var 'plan=t1.small.x86' -var 'fac=sjc1' -var 'os=centos_8' -var 'mode=install' ../8/templates/centos-8.json
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
