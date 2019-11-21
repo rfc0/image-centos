@@ -1,0 +1,56 @@
+{
+  "_image_version": "v19.11.20.00",
+  "variables": {
+    "PLAN": "",
+    "GITREPO": "",
+    "GITBRANCH": ""
+  },
+  "builders": [
+    {
+      "type": "docker",
+      "image": "centos:8",
+      "export_path": "image-{{user `plan`}}.tar"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": "yum -y update && yum -y install audit bash bash-completion ca-certificates chrony cloud-init cloud-utils-growpart curl device-mapper-multipath dhclient hwdata iotop iscsi-initiator-utils keyutils logrotate make mdadm microcode_ctl mtr net-tools NetworkManager-team NetworkManager-tui nmap-ncat openssh-clients openssh-server openssl parted pciutils redhat-lsb-core rsync rsyslog socat sudo sysstat systemd tar tcpdump teamd tmux traceroute tuned vim wget linux-firmware grub2-efi grub2 efibootmgr dracut-config-generic irqbalance iputils"
+    },
+    {
+      "type": "shell",
+      "inline": "echo packet-packer-dracut; KVER=`rpm -qa | grep kernel-core | sort | head -1 | sed 's/kernel-core-//g'`; echo 'No host-only for $KVER'; dracut -v --kver $KVER --no-hostonly -f /boot/initramfs-$KVER.img $KVER; ls -al /boot/initramfs*"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo i40e > /etc/modules-load.d/networking.conf",
+        "echo mlx4_core >> /etc/modules-load.d/networking.conf",
+        "echo mlx5_core >> /etc/modules-load.d/networking.conf"
+      ]
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "shell-local",
+      "inline": "echo packet-packer-targz; mkdir -p /tmp/packertar-{{user `plan`}}-{{timestamp}}; tar -xf image-{{user `plan`}}.tar -C /tmp/packertar-{{user `plan`}}-{{timestamp}}; tar -czf image.tar.gz -C /tmp/packertar-{{user `plan`}}-{{timestamp}} .; rm -rf /tmp/packertar-{{user `plan`}}-{{timestamp}};"
+    },
+    {
+      "type": "shell-local",
+      "environment_vars": [
+        "GITREPO=git@github.com:packethost/packet-images.git",
+        "GITBRANCH={{user `os`}}-{{user `plan`}}-{{timestamp}}",
+        "PLAN={{user `plan`}}",
+        "OS={{user `os`}}",
+        "FAC={{user `fac`}}",
+        "MODE={{user `mode`}}"
+      ],
+      "execute_command": [
+        "bash",
+        "-c",
+        "{{.Vars}} {{.Script}}"
+      ],
+      "script": "./scripts/entrypoint.sh"
+    }
+  ]
+}
