@@ -15,7 +15,30 @@
   "provisioners": [
     {
       "type": "shell",
-      "inline": "yum -y update && yum -y install audit bash bash-completion ca-certificates chrony cloud-init cloud-utils-growpart curl device-mapper-multipath dhclient hwdata iotop iscsi-initiator-utils keyutils logrotate make mdadm microcode_ctl mtr net-tools NetworkManager-team NetworkManager-tui nmap-ncat openssh-clients openssh-server openssl parted pciutils redhat-lsb-core rsync rsyslog socat sudo sysstat systemd tar tcpdump teamd tmux traceroute tuned vim wget linux-firmware grub2-efi grub2 efibootmgr dracut-config-generic irqbalance iputils"
+      "inline": [
+        "echo Unmasking services",
+        "systemctl unmask systemd-logind.service getty.target console-getty.service sys-fs-fuse-connections.mount systemd-remount-fs.service dev-hugepages.mount"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo Making /var/lib/rpm writeable and rebuilding rpm database",
+        "mv /var/lib/rpm /var/lib/rpm.bak",
+        "mv /var/lib/rpm.bak /var/lib/rpm",
+        "rpm --rebuilddb && echo 'RPMDB rebuild!'"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": "yum -y update && yum -y install audit bash bash-completion ca-certificates chrony cloud-init cloud-utils-growpart curl device-mapper-multipath dhclient hwdata iotop iscsi-initiator-utils keyutils logrotate make mdadm microcode_ctl mtr net-tools NetworkManager-team NetworkManager-tui nmap-ncat openssh-clients openssh-server openssl parted pciutils redhat-lsb-core rsync rsyslog socat sudo sysstat systemd tar tcpdump teamd tmux traceroute tuned vim wget kernel-core linux-firmware grub2-efi grub2 grub2-efi-aa64-modules.noarch grub2-efi-ia32-modules.noarch grub2-efi-x64-modules.noarch efibootmgr dracut-config-generic irqbalance iputils"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo Masking duplicate cloud init service",
+        "systemctl mask cloud-init-local.service"
+      ]
     },
     {
       "type": "shell",
