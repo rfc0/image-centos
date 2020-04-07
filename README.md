@@ -18,14 +18,16 @@ machine or VM for this purpose simply to keep things isolated. This repo makes u
  - Linux host on top of CentOS7 / Ubuntu 16
 
 ### Example image build
+Due to some issues with file permissions (RedHat ships certain files without read permissions, e.g. shadow/gshadow), you must perform the Packer build with root privileges.
+
 Packer image build of CentOS 7 on a t1.small.x86 instance in Packet's AMS1 facility:
 
-    [image-ubuntu/]$ packer build -var 'plan=t1.small.x86' -var 'fac=ams1' -var 'os=centos_7' -var 'mode=install' 7/templates/centos-7.json
+    [image-centos/]$ sudo packer build -var 'plan=t1.small.x86' -var 'fac=ams1' -var 'os=centos_7' -var 'mode=install' 7/templates/centos-7.json
 
 
 Packer image build of CentOS 7 on a t1.small.x86 instance in Packet's AMS1 facility with **hardware customization**:
 
-    [image-ubuntu/]$ packer build -var 'plan=t1.small.x86' -var 'fac=ams1' -var 'os=alpine_3' -var 'mode=customize' 7/templates/centos-7.json
+    [image-centos/]$ sudo packer build -var 'plan=t1.small.x86' -var 'fac=ams1' -var 'os=alpine_3' -var 'mode=customize' 7/templates/centos-7.json
 
 
 ### Hardware customization
