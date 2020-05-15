@@ -148,6 +148,12 @@ pipeline:
       <<: *image_test_c8_env
       PACKER_PLAN: c3.medium.x86
 
+  CentOS 8 Test - c1.xlarge.x86:
+    <<: *image_test
+    environment:
+      <<: *image_test_c8_env
+      PACKER_PLAN: c1.xlarge.x86
+
   CentOS 8 Test - s3.xlarge.x86:
     <<: *image_test
     environment:
