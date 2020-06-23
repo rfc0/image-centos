@@ -1,5 +1,5 @@
 {
-  "_image_version": "v19.11.20.00",
+  "_image_version": "v20.06.22.00",
   "variables": {
     "PLAN": "",
     "GITREPO": "",
@@ -31,6 +31,70 @@
     },
     {
       "type": "shell",
+      "inline": [
+        "echo Replacing the Coreutils package",
+        "yum -y --allowerasing install coreutils"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo Reinstall Core Mandatory Packages",
+        "PACKAGES=' audit basesystem bash coreutils cronie curl dnf dnf-plugin-spacewalk e2fsprogs filesystem firewalld glibc grubby hostname initscripts iproute iprutils iputils irqbalance kbd kexec-tools less man-db ncurses openssh-clients openssh-server parted passwd plymouth policycoreutils procps-ng rng-tools rootfiles rpm rsyslog selinux-policy-targeted setup shadow-utils sssd-common sssd-kcm sudo systemd tuned util-linux vim-minimal xfsprogs yum'",
+        "yum -y reinstall $PACKAGES",
+        "yum -y install $PACKAGES"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo Reinstall Core Default Packages",
+        "PACKAGES=' NetworkManager NetworkManager-team NetworkManager-tui authselect biosdevname dnf-plugins-core dracut-config-rescue iwl100-firmware iwl1000-firmware iwl105-firmware iwl135-firmware iwl2000-firmware iwl2030-firmware iwl3160-firmware iwl3945-firmware iwl4965-firmware iwl5000-firmware iwl5150-firmware iwl6000-firmware iwl6000g2a-firmware iwl6050-firmware iwl7260-firmware kernel-tools libsysfs linux-firmware lshw lsscsi microcode_ctl prefixdevname sg3_utils sg3_utils-libs'", 
+        "yum -y reinstall $PACKAGES",
+        "yum -y install $PACKAGES"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo Reinstall Core Optional Packages",
+        "echo '(tboot excluded)'",
+        "PACKAGES=' dracut-config-generic dracut-network initial-setup rdma-core selinux-policy-mls'",
+        "yum -y reinstall $PACKAGES",
+        "yum -y install $PACKAGES"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo Reinstall Standard Mandatory Packages",
+        "PACKAGES=' acl at attr bc centos-release centos-release-eula cpio crontabs cyrus-sasl-plain dbus ed file iptstate irqbalance kpatch logrotate lsof mcelog microcode_ctl net-tools pciutils psacct quota rsyslog-gnutls rsyslog-gssapi rsyslog-relp sudo symlinks systemd-udev tar tree util-linux-user'", 
+        "yum -y reinstall $PACKAGES",
+        "yum -y install $PACKAGES"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo Reinstall Standard Default Packages",
+        "echo '(insights-client excluded)'",
+        "echo '(mlocate excluded)'",
+        "PACKAGES=' bash-completion blktrace bpftool bzip2 chrony cockpit cryptsetup dnf-plugin-spacewalk dos2unix dosfstools ethtool fprintd-pam gnupg2 kmod-kvdo ledmon libstoragemgmt lvm2 mailcap man-pages mdadm mtr nano nmap-ncat pinfo plymouth realmd rng-tools rsync smartmontools sos sssd strace tcpdump teamd time unzip usbutils vdo vim-enhanced virt-what wget which words xfsdump zip'", 
+        "yum -y reinstall $PACKAGES",
+        "yum -y install $PACKAGES"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo Reinstall Standard Optional Packages",
+        "PACKAGES=' cifs-utils cockpit-doc fwupd fwupdate ima-evm-utils nfs-utils nvmetcli traceroute zsh'",
+        "yum -y reinstall $PACKAGES",
+        "yum -y install $PACKAGES"
+      ]
+    },
+    {
+      "type": "shell",
       "inline": "yum -y update && yum -y install audit bash bash-completion ca-certificates chrony cloud-init cloud-utils-growpart curl device-mapper-multipath dhclient hwdata iotop iscsi-initiator-utils keyutils logrotate make mdadm microcode_ctl mtr net-tools NetworkManager-team NetworkManager-tui nmap-ncat openssh-clients openssh-server openssl parted pciutils redhat-lsb-core rsync rsyslog socat sudo sysstat systemd tar tcpdump teamd tmux traceroute tuned vim wget kernel-core linux-firmware grub2-efi grub2 grub2-efi-aa64-modules.noarch grub2-efi-ia32-modules.noarch grub2-efi-x64-modules.noarch efibootmgr dracut-config-generic irqbalance iputils"
     },
     {
@@ -42,7 +106,19 @@
     },
     {
       "type": "shell",
-      "inline": "echo packet-packer-dracut; KVER=`rpm -qa | grep kernel-core | sort | head -1 | sed 's/kernel-core-//g'`; echo 'No host-only for $KVER'; dracut -v --kver $KVER --no-hostonly -f /boot/initramfs-$KVER.img $KVER; ls -al /boot/initramfs*"
+      "inline": [
+        "echo Turning SELinux to permissive mode",
+        "sed 's/^SELINUX=enforcing/SELINUX=permissive/g' -i /etc/selinux/config "
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "echo packet-packer-dracut",
+        "KVER=`rpm -qa | grep kernel-core | sort | head -1 | sed 's/kernel-core-//g'`",
+        "echo 'No host-only for $KVER'",
+        "dracut -v --kver $KVER --no-hostonly -f /boot/initramfs-$KVER.img $KVER; ls -al /boot/initramfs*"
+    ]
     },
     {
       "type": "shell",
@@ -56,7 +132,13 @@
   "post-processors": [
     {
       "type": "shell-local",
-      "inline": "echo packet-packer-targz; mkdir -p /tmp/packertar-{{user `plan`}}-{{timestamp}}; tar -xf image-{{user `plan`}}.tar -C /tmp/packertar-{{user `plan`}}-{{timestamp}}; tar -czf image.tar.gz -C /tmp/packertar-{{user `plan`}}-{{timestamp}} .; rm -rf /tmp/packertar-{{user `plan`}}-{{timestamp}};"
+      "inline": [
+        "echo packet-packer-targz",
+        "mkdir -p /tmp/packertar-{{user `plan`}}-{{timestamp}}",
+        "tar -xf image-{{user `plan`}}.tar -C /tmp/packertar-{{user `plan`}}-{{timestamp}}",
+        "tar -czf image.tar.gz -C /tmp/packertar-{{user `plan`}}-{{timestamp}} .",
+        "rm -rf /tmp/packertar-{{user `plan`}}-{{timestamp}}"
+      ]
     },
     {
       "type": "shell-local",
