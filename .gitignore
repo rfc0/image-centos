@@ -5,3 +5,9 @@ image.tar.gz
 initrd.tar.gz
 kernel.tar.gz
 modules.tar.gz
+iso
+packer_cache
+output-image
+image-map
+archives
+http

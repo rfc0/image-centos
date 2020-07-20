@@ -1,0 +1,36 @@
+{
+  "variables": {
+    "root_password": "12345",
+    "version": "2003",
+    "sha256sum": "659691c28a0e672558b003d223f83938f254b39875ee7559d1a4a14c79173193"
+  },
+
+  "builders": [
+    {
+      "vm_name": "{{ user `build_name` }}",
+      "iso_urls": [
+        "{{ user `repo_url` }}/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-{{ user `version` }}.iso"
+      ],
+      "iso_checksum": "sha256:{{ user `sha256sum` }}",
+      "iso_target_path": "iso",
+      "output_directory": "{{ user `outdir` }}",
+      "ssh_username": "root",
+      "ssh_password": "{{ user `root_password` }}",
+      "ssh_wait_timeout": "20m",
+      "http_directory": "{{ user `http_dir` }}",
+      "boot_command": [
+        "<tab> text ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<enter><wait>"
+      ],
+      "boot_wait": "10s",
+      "shutdown_command": "/sbin/halt -h -p",
+      "type": "qemu",
+      "qemu_binary": "/usr/libexec/qemu-kvm",
+      "headless": true,
+      "memory": 4096,
+      "disk_interface": "virtio",
+      "disk_size": 4096,
+      "format": "raw",
+      "cpus": 2
+    }
+  ]
+}

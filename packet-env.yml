@@ -1,0 +1,44 @@
+---
+- hosts: localhost
+  become: true
+  vars:
+  - packer_ver: "1.6.0"
+  - packet_ver: "0.0.6"
+  - packer_file: "packer_{{ packer_ver }}_linux_amd64.zip"
+  - packer_url: "https://releases.hashicorp.com/packer/{{ packer_ver }}/{{ packer_file }}"
+  - packet_url: "https://github.com/packethost/packet-cli/releases/download/{{ packet_ver }}/packet-linux-amd64"
+  tasks:
+  - name: Install packages
+    yum:
+      name:
+        - lsscsi
+        - git
+        - git-lfs
+        - golang
+        - jq
+        - gzip
+        - tar
+        - unzip
+        - yum-utils
+        - qemu-kvm
+        - qemu-img
+      state: latest
+  - name: Install Packer
+    get_url:
+      url: "{{ packer_url }}"
+      dest: /tmp
+  - name: Unzip packer
+    unarchive:
+      src: /tmp/{{ packer_file }}
+      dest: /usr/local/bin
+  - name: Get Packet cli
+    get_url:
+      url: "{{ packet_url }}"
+      dest: /usr/local/bin/packet
+      mode: 0755
+  - name: Create symlink
+    file:
+      src: /usr/local/bin/packet
+      dest: /usr/local/bin/packet-cli
+      state: link
+      

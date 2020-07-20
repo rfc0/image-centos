@@ -1,0 +1,169 @@
+#!/bin/bash
+
+GITREPO="git@github.com:packethost/packet-images.git"
+HTTPREPO="http://reposerver/repo"
+
+MAPDIR="image-map"
+RAWIMGDIR="output-image"
+ARCHDIR="archives"
+HTTPDIR="http"
+TMPLDIR="templates"
+SHAFILE="image.sha"
+BLDLIST="build.list"
+
+function mkfreshdir () {
+    sudo rm -rf $1
+    mkdir -p $1
+}
+
+
+function bld_raw_image () {
+
+    sudo rm -r build.json
+    mkfreshdir $HTTPDIR
+
+    cp $TMPLDIR/$OS/build.json ./
+    cp $TMPLDIR/$OS/*.cfg $HTTPDIR/
+
+    rm -rf $RAWIMGDIR
+
+    packer build \
+	-var "build_name=$RAWIMG" \
+	-var "outdir=$RAWIMGDIR" \
+	-var "http_dir=$HTTPDIR" \
+	-var "repo_url=$HTTPREPO" \
+	build.json
+
+    if [ $? -ne 0 ]; then
+	echo "Packer build failed."
+	exit 1
+    fi
+}
+
+function img_fixup () {
+    : '
+    Put here wharever you need to change on the image,
+    but cannot be performed by the post-installation scripts.
+    '
+    sudo rm -rf $MAPDIR/tmp/
+
+}
+
+function img_extract () {
+    : '
+    This function just extracts the filesystem tree to a regular tarball.
+    May be used for debugging purpose.
+    '
+    sudo tar -cf $OS.tar -C $MAPDIR .
+}
+
+
+function img_archive () {
+
+    case $OS_FAMILY in
+	debian|ubuntu)
+	    KERNEL=$(ls -la $MAPDIR/boot/vmlinuz-* | awk {'print $9'} | sort -V | tail -1)
+	    INITRD=$(ls -la $MAPDIR/boot/initrd* | awk {'print $9'} | sort -V | tail -1)
+	    KERNELVER=$(echo $KERNEL | sed "s/$MAPDIR\/boot\/vmlinuz-//g")
+	    INITRD_FILE="initrd.img-$KERNELVER"
+	    ;;
+	rhel|centos)
+	    KERNEL=$(ls -al $MAPDIR/boot/vmlinuz-* | awk {'print $9'} | sort -V | grep -v rescue | tail -1)
+	    INITRD=$(ls -al $MAPDIR/boot/initramfs* | awk {'print $9'} | sort -V | grep -v rescue | tail -1)
+	    KERNELVER=$(echo $KERNEL | sed "s/$MAPDIR\/boot\/vmlinuz-//g")
+	    INITRD_FILE="initramfs-$KERNELVER.img"
+	    ;;
+	*) 
+	    echo "Sorry, the OS $OS_FAMILY is not supported."
+	    exit 1
+	    ;;
+    esac
+
+    echo "Kernel file: $KERNEL"
+    echo "Initrd file: $INITRD"
+    echo "Kernel version: $KERNELVER"
+
+    BOOTTMP=$(mktemp -d -t duo-XXXXXXX)
+    mkfreshdir $ARCHDIR
+
+    echo "Temp directory is: $BOOTTMP"
+    echo "Archive dir is: $ARCHDIR"
+
+    echo "Archiving kernel..."
+    sudo cp $KERNEL $BOOTTMP/vmlinuz
+    sudo tar -zcf $ARCHDIR/kernel.tar.gz -C $BOOTTMP ./vmlinuz --totals --checkpoint=.1000
+
+    echo "Archiving initrd..."
+    sudo cp $INITRD $BOOTTMP/initrd
+    sudo tar -zcf $ARCHDIR/initrd.tar.gz -C $BOOTTMP ./initrd --totals --checkpoint=.1000
+
+    echo "Archiving modules..."
+    sudo tar -zcf $ARCHDIR/modules.tar.gz $MAPDIR/lib/modules/$KERNELVER --totals --checkpoint=.1000
+
+    echo "Archiving root filesystem..."
+    sudo tar -zcf $ARCHDIR/image.tar.gz -C $MAPDIR .  --totals --checkpoint=.1000
+
+    sudo rm -rf $BOOTTMP
+}
+
+function img2git () {
+
+    echo "Lets upload build artifacts to: $GITREPO"
+    echo "BRANCH: $GITBRANCH"
+
+    IMGTMPDIR=$(mktemp -d -t image-XXXXXXX)
+
+    #trap "cd $BASEDIR; rm -rf $IMGTMPDIR" EXIT
+    echo "Image temp dir: $IMGTMPDIR"
+
+    git clone git@github.com:packethost/packet-images.git $IMGTMPDIR/remote-repo
+    cd $IMGTMPDIR/remote-repo
+    git checkout --orphan $GITBRANCH
+    git rm --cached -r .
+    cp -av $BASEDIR/$ARCHDIR/*.gz .
+    git lfs track *.tar.gz
+    git add .gitattributes *.tar.gz
+    git commit -m "Packer image for $GITBRANCH"
+    git config --global lfs.https://github.com/.locksverify false
+    git push -f origin $GITBRANCH
+    SHA=$(git rev-parse --verify HEAD)
+    cd $BASEDIR
+    sudo rm -f $SHAFILE
+    echo $SHA > $SHAFILE
+    echo $OS:$SHA >> $BLDLIST
+}
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <OS_version>"
+    exit 1
+fi
+
+OS=$1
+
+if [ ! -d $TMPLDIR/$OS ]; then
+    echo "Sorry, $OS not supported by this tool."
+    exit 1
+fi
+
+GITBRANCH="$OS-test1"
+BASEDIR=$(pwd)
+RAWIMG="$OS.raw"
+OS_FAMILY=$(echo $OS |sed 's/_.*//')
+
+bld_raw_image
+
+mkfreshdir $MAPDIR
+sudo losetup -f -P $RAWIMGDIR/$RAWIMG
+sudo mount /dev/loop0p1 $MAPDIR
+
+img_fixup
+
+#img_extract
+img_archive
+
+sudo umount $MAPDIR
+sudo losetup -d /dev/loop0
+
+img2git
+
+echo "Build successful."

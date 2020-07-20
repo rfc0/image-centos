@@ -1,0 +1,79 @@
+---
+- hosts: localhost
+  vars:
+  - user_fullname: "R2 D2"
+  - user_email: "r2d2@packet.com"
+  - git_token: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  - packet_auth_token: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  - packet_consumer_token: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  tasks:
+  - name: Create .ssh directory
+    file:
+      path: $HOME/.ssh
+      state: directory
+      mode: 0700
+  - name: Install ssh keys
+    openssh_keypair:
+      path: $HOME/.ssh/id_rsa
+      force: no
+  - name: Create ssh config.d
+    file:
+      path: $HOME/.ssh/config.d
+      mode: 0755
+      state: directory
+  - name: Create img_builder config
+    blockinfile:
+      path: $HOME/.ssh/config.d/img_builder.conf
+      create: yes
+      block: |
+        Host *
+                ForwardAgent yes
+                StrictHostKeyChecking no
+      mode: 0644
+  - name: Include to ssh config file
+    lineinfile:
+      path: $HOME/.ssh/config
+      line: Include ~/.ssh/config.d/img_builder.conf
+      insertbefore: BOF
+      mode: 0644
+      state: present
+      create: yes
+  - name: Remove github.com from known_hosts
+    command: ssh-keygen -R github.com
+  - name: Set git user name
+    git_config: 
+      name: user.name
+      scope: global
+      value: "{{ user_fullname }}"
+  - name: Set git user email
+    git_config:
+      name: user.email
+      scope: global
+      value: "{{ user_email }}"
+  - name: Create img_builder config
+    blockinfile:
+      path: $HOME/.packetvars
+      create: yes
+      block: |
+        export GIT_TOKEN="{{ git_token}}"
+        export PACKET_AUTH_TOKEN="{{ packet_auth_token }}"
+        export PACKET_API=$PACKET_AUTH_TOKEN
+        export PACKET_TOKEN=$PACKET_AUTH_TOKEN
+        export PACKET_API_TOKEN=$PACKET_AUTH_TOKEN
+        export PACKET_API_AUTH=$PACKET_AUTH_TOKEN
+        export PACKET_API_AUTH_TOKEN=$PACKET_AUTH_TOKEN
+        export PACKET_CONSUMER_TOKEN="{{ packet_consumer_token }}"
+        export ATOKEN=$PACKET_AUTH_TOKEN
+        export CTOKEN=$PACKET_CONSUMER_TOKEN
+      insertbefore: BOF
+      mode: 0644
+  - name: Create img_builder config
+    blockinfile:
+      path: $HOME/.bashrc
+      create: yes
+      block: |
+        if [ -f ~/.packetvars ]; then
+                . ~/.packetvars
+        fi
+      insertafter: "^fi$"
+      mode: 0644
